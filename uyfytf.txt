@@ -1,0 +1,169 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h> 
+
+//-------- Customise these values -----------
+const char* ssid = "redmi";                  //ssid of the wifi 
+const char* password = "shariq1999";                     //password of the wifi
+
+#define ORG "3p5rwh"                          //organisation id from bluemix
+#define DEVICE_TYPE "nodemcu"                 //specified when the divice is added to ibmiot
+#define DEVICE_ID "ramu"                     //specified when the divice is added to ibmiot
+#define TOKEN "n3SpC?lC9EvR&u(y!*"            //generated when the device is added to ibmiot
+//-------- Customise the above values --------
+
+char server[] = ORG ".messaging.internetofthings.ibmcloud.com";
+char topic[] = "iot-2/evt/status/fmt/json";
+char authMethod[] = "use-token-auth";
+char token[] = TOKEN;
+char clientId[] = "d:" ORG ":" DEVICE_TYPE ":" DEVICE_ID;
+
+int count1 = 0, count2 = 0, count3 = 0, pin1 = 16, bTime = 0, pin2 = 5, pin3 = 4, pin4 = 2;
+int buttonPushCounter = 0;   
+int buttonState = 0;         
+int lastButtonState = 0;
+long lastMsg = 0;
+String msg;
+
+WiFiClient wifiClient;
+PubSubClient client(server, 80, NULL, wifiClient);
+
+
+void pubsub(){                                    //publishing function
+ long now = millis();
+ if (now - lastMsg > 2000){
+  lastMsg = now;
+  if (!client.connected()){
+    Serial.print("Reconnecting client to ");
+    Serial.println(server);
+    while (!client.connect(clientId, authMethod, token)){
+      Serial.print(".");
+      delay(200);
+    }
+    Serial.println();
+ }
+
+ String payload = "{\"d\":{\"Huggama\":\"chotu\"";
+ payload += ",\"goodrating\":";
+ payload += count1;
+ payload += ",\"mediumrating\":";
+ payload += count2;
+ payload += ",\"badrating\":";
+ payload += count3;
+ payload += ",\"count\":";
+ payload += buttonPushCounter;
+ payload += "}}";
+ 
+ Serial.print("Sending payload: ");
+ Serial.println(payload);
+ 
+ if (client.publish(topic, (char*) payload.c_str())) {
+  Serial.println("Publish ok");
+  count1 = 0;
+  count2 = 0;
+  count3 = 0;
+  } 
+    else {
+      Serial.println("Publish failed");
+    }
+  }
+ }
+
+void printer(){                         //serial print function
+  Serial.print(count1);  
+  Serial.print("\t");  
+  Serial.print(count2); 
+  Serial.print("\t");   
+  Serial.print(count3);
+  Serial.print("\t");  
+  Serial.print(buttonPushCounter/2);
+  Serial.print("\n");  
+}
+
+void setup() {
+ Serial.begin(115200);
+ Serial.println();
+
+  digitalWrite(pin1,HIGH);
+  digitalWrite(pin2,HIGH);
+  digitalWrite(pin3,HIGH);
+  digitalWrite(pin4,LOW);
+  pinMode(pin1,OUTPUT);
+  pinMode(pin2,OUTPUT);
+  pinMode(pin3,OUTPUT);
+  pinMode(pin4,INPUT);
+  Serial.print("start");
+
+ Serial.print("Connecting to "); Serial.print(ssid);
+ WiFi.begin(ssid, password);
+ while (WiFi.status() != WL_CONNECTED) {
+ delay(500);
+ Serial.print(".");
+ } 
+ Serial.println("");
+
+ Serial.print("WiFi connected, IP address: "); 
+ Serial.println(WiFi.localIP());
+}
+
+
+void loop() {
+
+  if(digitalRead(pin1) == LOW){
+    if(millis()-bTime >= 5000){
+      count1++;
+      printer();
+      pubsub();
+      delay(100);
+      while(digitalRead(pin1) == LOW){}
+      bTime = millis();
+    }
+    else{
+      bTime = millis();
+    }
+  }
+
+  
+  else if(digitalRead(pin2) == LOW){
+    if(millis()-bTime >= 5000){
+      count2++;
+      printer();
+      pubsub();
+      delay(100);
+      while(digitalRead(pin2) == LOW){}
+      bTime = millis();
+    }
+    else{
+      bTime = millis();
+    }
+  }
+
+
+  else if(digitalRead(pin3) == LOW){
+    if(millis()-bTime >= 5000){
+      count3++;
+      printer();
+      pubsub();
+      delay(100);
+      while(digitalRead(pin3) == LOW){}
+      bTime = millis();
+    }
+    else{
+      bTime = millis();
+    }
+  }
+
+  buttonState = digitalRead(pin4);
+      if (buttonState != lastButtonState) 
+      {
+        if (buttonState == HIGH) {
+          buttonPushCounter++;
+          printer();
+          msg = "petfed";
+          pubsub();
+    } 
+    delay(50);
+      }
+  lastButtonState = buttonState;
+
+ 
+}
